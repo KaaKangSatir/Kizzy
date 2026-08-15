@@ -44,10 +44,15 @@ fun GamesResponse.toGame() : Game {
     val finalLargeImage = actualCoverHash ?: actualIconHash ?: ""
     val finalSmallImage = if (actualCoverHash != null && actualIconHash != null) actualIconHash else ""
     
+    val imageUrl = if (actualCoverHash != null) "https://cdn.discordapp.com/app-icons/$id/$actualCoverHash.png"
+                   else if (actualIconHash != null) "https://cdn.discordapp.com/app-icons/$id/$actualIconHash.png"
+                   else Constants.XBOX_LINK
+    
     return Game(
         platform = "PC",
         small_image = finalSmallImage,
         large_image = finalLargeImage,
+        image_url = imageUrl,
         game_title = name,
         application_id = id
     )

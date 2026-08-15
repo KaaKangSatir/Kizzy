@@ -31,6 +31,7 @@ data class Game(
     val platform: String,
     val small_image: String,
     val large_image: String?,
+    val image_url: String? = null,
     val game_title: String,
     val application_id: String? = null
 )

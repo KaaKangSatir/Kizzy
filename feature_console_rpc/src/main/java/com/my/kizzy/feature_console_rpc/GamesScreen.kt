@@ -274,7 +274,7 @@ fun SingleChoiceGameItem(
                     .clip(RoundedCornerShape(15.dp))
             ) {
                 AsyncImage(
-                    model = game.large_image,
+                    model = game.image_url ?: game.large_image,
                     modifier = Modifier
                         .size(80.dp)
                         .clip(RoundedCornerShape(15.dp)),
