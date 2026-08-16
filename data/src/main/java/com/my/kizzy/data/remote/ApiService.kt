@@ -24,6 +24,10 @@ import io.ktor.http.HttpHeaders
 import java.io.File
 import javax.inject.Inject
 
+import io.ktor.http.content.PartData
+import io.ktor.utils.io.core.buildPacket
+import io.ktor.utils.io.core.writeFully
+
 class ApiService @Inject constructor(
     private val client: HttpClient,
     @Base private val baseUrl: String,
@@ -38,16 +42,20 @@ class ApiService @Inject constructor(
     }
 
     suspend fun uploadImage(file: File) = runCatching {
-        client.post {
-            url("$baseUrl/upload")
-            setBody(MultiPartFormDataContent(
-                formData {
-                    append("\"temp\"", file.readBytes(), Headers.build {
-                        append(HttpHeaders.ContentType, "image/*")
-                        append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
-                    })
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+            val bytes = file.readBytes()
+            val part = PartData.BinaryItem(
+                provider = { buildPacket { writeFully(bytes) } },
+                dispose = {},
+                partHeaders = Headers.build {
+                    append(HttpHeaders.ContentDisposition, "form-data; name=\"temp\"; filename=\"Temp.png\"")
+                    append(HttpHeaders.ContentType, "image/png")
                 }
-            ))
+            )
+            client.post {
+                url("$baseUrl/upload")
+                setBody(MultiPartFormDataContent(listOf(part)))
+            }
         }
     }
 

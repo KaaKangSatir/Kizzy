@@ -27,6 +27,9 @@
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
         android:minSdkVersion="34" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        android:minSdkVersion="34" />
 
     <application
         android:name=".App"
@@ -85,7 +88,7 @@
 
         <service
             android:name="com.my.kizzy.feature_rpc_base.services.AppDetectionService"
-            android:foregroundServiceType="mediaPlayback"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
         <service
             android:name="com.my.kizzy.feature_rpc_base.services.MediaRpcService"

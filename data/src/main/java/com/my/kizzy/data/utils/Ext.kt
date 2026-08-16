@@ -19,6 +19,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.util.DisplayMetrics
 import android.webkit.MimeTypeMap
@@ -52,7 +53,7 @@ suspend fun HttpResponse.toImageURL(): String? {
 suspend fun HttpResponse.toExternalAsset(): String? {
     return try {
         if (this.status == HttpStatusCode.OK)
-            "mp:" + this.body<Array<ExternalAsset>>().first().externalAssetPath.substringBefore("?")
+            "mp:" + this.body<Array<ExternalAsset>>().first().externalAssetPath
         else
             null
     } catch (e: Exception) {
@@ -63,7 +64,7 @@ suspend fun HttpResponse.toExternalAsset(): String? {
 suspend fun HttpResponse.toAttachmentAsset(): String? {
     return try {
         if (this.status == HttpStatusCode.OK)
-            this.body<ApiResponse>().id.substringBefore("?")
+            this.body<ApiResponse>().id
         else
             null
     } catch (e: Exception) {
@@ -80,10 +81,54 @@ fun Bitmap?.toFile(context: Context, outputPathFolder: String): File {
     val dir = File(context.filesDir.toString() + File.separator + outputPathFolder)
     dir.mkdirs()
     val image = File(dir, "Temp.png")
-    FileOutputStream(image).use {
-        this?.compress(Bitmap.CompressFormat.PNG, 100, it)
+    FileOutputStream(image).use { out ->
+        val target = this ?: Bitmap.createBitmap(192, 192, Bitmap.Config.ARGB_8888)
+        val maxDim = 512
+        val scaled = if (target.width > maxDim || target.height > maxDim) {
+            val scale = maxDim.toFloat() / maxOf(target.width, target.height)
+            val newW = (target.width * scale).toInt().coerceAtLeast(1)
+            val newH = (target.height * scale).toInt().coerceAtLeast(1)
+            Bitmap.createScaledBitmap(target, newW, newH, true)
+        } else {
+            target
+        }
+        scaled.compress(Bitmap.CompressFormat.PNG, 100, out)
     }
     return image
+}
+
+fun Context.getAppBitmap(packageName: String): Bitmap? {
+    return try {
+        val drawable = packageManager.getApplicationIcon(packageName)
+        if (drawable is BitmapDrawable && drawable.bitmap != null) {
+            drawable.bitmap
+        } else {
+            val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 192
+            val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 192
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bitmap
+        }
+    } catch (e: Exception) {
+        try {
+            val drawable = com.blankj.utilcode.util.AppUtils.getAppIcon(packageName)
+            if (drawable is BitmapDrawable && drawable.bitmap != null) {
+                drawable.bitmap
+            } else if (drawable != null) {
+                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 192
+                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 192
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+                bitmap
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
 }
 
 @Suppress("DEPRECATION")
@@ -93,29 +138,7 @@ fun Context.getAppInfo(packageName: String): ApplicationInfo {
 
 @Suppress("DEPRECATION")
 fun ApplicationInfo.toBitmap(context: Context): Bitmap? {
-    val res = context.packageManager.getResourcesForApplication(this)
-    val icon = if (Prefs[Prefs.RPC_USE_LOW_RES_ICON, false])
-        AppUtils.getAppIcon(this.packageName)
-    else res.getDrawableForDensity(
-        this.icon,
-        DisplayMetrics.DENSITY_XXXHIGH
-    )
-
-    val bitmap = icon?.let {
-        Bitmap.createBitmap(
-            it.intrinsicWidth,
-            icon.intrinsicHeight,
-            Bitmap.Config.ARGB_8888
-        )
-    }
-    val canvas = bitmap?.let { Canvas(it) }
-    if (icon != null) {
-        if (canvas != null) {
-            icon.setBounds(0, 0, canvas.width, canvas.height)
-            icon.draw(canvas)
-        }
-    }
-    return bitmap
+    return context.getAppBitmap(this.packageName)
 }
 fun String.toRpcImage(): RpcImage? {
     return if (this.isBlank())

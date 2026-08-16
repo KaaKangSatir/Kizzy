@@ -68,6 +68,7 @@ class MediaRpcService : Service() {
 
     private var currentMediaController: MediaController? = null
 
+    @Suppress("DEPRECATION")
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
@@ -165,6 +166,15 @@ class MediaRpcService : Service() {
     }
 
     private val mediaControllerCallback = MediaControllerCallback()
+    private var updateJob: Job? = null
+
+    private fun triggerUpdate(delayMs: Long = 1000) {
+        updateJob?.cancel()
+        updateJob = scope.launch {
+            delay(delayMs)
+            updatePresence()
+        }
+    }
 
     private fun activeSessionsListener(mediaSessions: List<MediaController>?, isEvent: Boolean = true) {
         logger.d("MediaRPC", "Active sessions changed")
@@ -181,35 +191,21 @@ class MediaRpcService : Service() {
             currentMediaController = null
         }
 
-        scope.coroutineContext.cancelChildren()
-        scope.launch { updatePresence() }
+        triggerUpdate(500)
     }
 
     private inner class MediaControllerCallback: MediaController.Callback() {
         override fun onPlaybackStateChanged(state: PlaybackState?) {
             super.onPlaybackStateChanged(state)
-
-            // Cancel all previous jobs and start new job to prevent conflict/spam
-            scope.coroutineContext.cancelChildren()
-            scope.launch {
-                delay(1000)
-                updatePresence()
-            }
+            triggerUpdate(1000)
         }
         override fun onMetadataChanged(metadata: MediaMetadata?) {
             super.onMetadataChanged(metadata)
-
-            scope.coroutineContext.cancelChildren()
-            scope.launch {
-                delay(1000)
-                updatePresence()
-            }
+            triggerUpdate(1000)
         }
         override fun onSessionDestroyed() {
             super.onSessionDestroyed()
-
-            scope.coroutineContext.cancelChildren()
-            scope.launch { updatePresence() }
+            triggerUpdate(500)
         }
     }
 

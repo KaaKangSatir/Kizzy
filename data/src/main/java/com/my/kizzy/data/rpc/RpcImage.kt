@@ -16,12 +16,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import com.my.kizzy.domain.repository.KizzyRepository
 import com.my.kizzy.preference.Prefs
+import com.my.kizzy.data.utils.getAppBitmap
 import com.my.kizzy.data.utils.getAppInfo
 import com.my.kizzy.data.utils.toBitmap
 import com.my.kizzy.data.utils.toFile
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 sealed class RpcImage {
     abstract suspend fun resolveImage(repository: KizzyRepository): String?
@@ -39,12 +37,14 @@ sealed class RpcImage {
     }
 
     class ApplicationIcon(val packageName: String, private val context: Context) : RpcImage() {
-        val data = Prefs[Prefs.SAVED_IMAGES, "{}"]
-        private val savedImages: HashMap<String, String> = Json.decodeFromString(data)
+        companion object {
+            private val appIconCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        }
 
         override suspend fun resolveImage(repository: KizzyRepository): String? {
-            return if (savedImages.containsKey(packageName))
-                savedImages[packageName]
+            val cached = appIconCache[packageName]
+            return if (!cached.isNullOrBlank())
+                cached
             else
                 retrieveImageFromApi(packageName, context, repository)
         }
@@ -54,14 +54,16 @@ sealed class RpcImage {
             context: Context,
             repository: KizzyRepository,
         ): String? {
-            val applicationInfo = context.getAppInfo(packageName)
-            val bitmap = applicationInfo.toBitmap(context)
-            val response = repository.uploadImage(bitmap.toFile(context, "image"))
-            response?.let {
-                savedImages[packageName] = it
-                Prefs[Prefs.SAVED_IMAGES] = Json.encodeToString(savedImages)
-            }
-            return response
+            return runCatching {
+                val bitmap = context.getAppBitmap(packageName)
+                val response = repository.uploadImage(bitmap.toFile(context, "image"))
+                response?.let {
+                    if (it.isNotBlank()) {
+                        appIconCache[packageName] = it
+                    }
+                }
+                response
+            }.getOrNull()
         }
     }
 
@@ -71,17 +73,21 @@ sealed class RpcImage {
         private val packageName: String,
         val title: String,
     ) : RpcImage() {
+        companion object {
+            private val artworkCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        }
+
         override suspend fun resolveImage(repository: KizzyRepository): String? {
-            val data = Prefs[Prefs.SAVED_ARTWORK, "{}"]
             val schema = "${this.packageName}:${this.title}"
-            val savedImages = Json.decodeFromString<HashMap<String, String>>(data)
-            return if (savedImages.containsKey(schema))
-                savedImages[schema]
+            val cached = artworkCache[schema]
+            return if (!cached.isNullOrBlank())
+                cached
             else {
                 val result = repository.uploadImage(bitmap.toFile(this.context, "art"))
                 result?.let {
-                    savedImages[schema] = it
-                    Prefs[Prefs.SAVED_ARTWORK] = Json.encodeToString(savedImages)
+                    if (it.isNotBlank()) {
+                        artworkCache[schema] = it
+                    }
                 }
                 result
             }

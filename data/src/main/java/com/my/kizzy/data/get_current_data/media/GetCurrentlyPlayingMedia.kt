@@ -33,9 +33,9 @@ class GetCurrentPlayingMedia @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     object Assets {
-        val PLAY = "app-assets/$APPLICATION_ID/1300361266212241430.png";
-        val PAUSE = "app-assets/$APPLICATION_ID/1300361619490209802.png";
-        val STOP = "app-assets/$APPLICATION_ID/1300361702621188160.png";
+        val PLAY = "1300361266212241430"
+        val PAUSE = "1300361619490209802"
+        val STOP = "1300361702621188160"
     }
 
     private fun getPlaybackStateIcon(playbackState: Int): RpcImage {
@@ -48,7 +48,6 @@ class GetCurrentPlayingMedia @Inject constructor(
     }
 
     operator fun invoke(): CommonRpc {
-        var largeIcon: RpcImage? = null
         var smallIcon: RpcImage? = null
         var smallText: String? = null
         var timestamps: Timestamps? = null
@@ -82,7 +81,8 @@ class GetCurrentPlayingMedia @Inject constructor(
                 if (Prefs[Prefs.MEDIA_RPC_ALBUM_NAME, false])
                 metadata?.let { metadataResolver.getAlbum(it) }
                 else null
-            val bitmap = metadata?.let { metadataResolver.getCoverArt(it) }
+            val bitmap = metadata?.let { metadataResolver.getCoverArt(it, context) }
+            val coverArtUri = if (bitmap == null) metadata?.let { metadataResolver.getCoverArtUri(it) } else null
             val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)
             duration?.let {
                 if (it != 0L && mediaController.playbackState?.state == PlaybackState.STATE_PLAYING) timestamps = Timestamps(
@@ -91,13 +91,14 @@ class GetCurrentPlayingMedia @Inject constructor(
                 )
             }
             if (title != null) {
-                largeIcon =
-                    if (Prefs[Prefs.MEDIA_RPC_APP_ICON, false]) RpcImage.ApplicationIcon(
-                        mediaController.packageName, context
-                    ) else null
+                var largeIcon: RpcImage? = RpcImage.ApplicationIcon(
+                    mediaController.packageName, context
+                )
                 if (bitmap != null) {
-                    smallIcon = largeIcon
-                    smallText = appName
+                    if (Prefs[Prefs.MEDIA_RPC_APP_ICON, false]) {
+                        smallIcon = RpcImage.ApplicationIcon(mediaController.packageName, context)
+                        smallText = appName
+                    }
                     largeIcon = RpcImage.BitmapImage(
                         context = context,
                         bitmap = bitmap,
@@ -105,6 +106,12 @@ class GetCurrentPlayingMedia @Inject constructor(
                         // <Main artist>|<Album>|<Title>
                         title = "${metadata.let { metadataResolver.getAlbumArtists(it) }}|${metadata.let { metadataResolver.getAlbum(it) }?: "unknown"}|${title}"
                     )
+                } else if (!coverArtUri.isNullOrEmpty()) {
+                    if (Prefs[Prefs.MEDIA_RPC_APP_ICON, false]) {
+                        smallIcon = RpcImage.ApplicationIcon(mediaController.packageName, context)
+                        smallText = appName
+                    }
+                    largeIcon = RpcImage.ExternalImage(coverArtUri)
                 }
 
                 if (Prefs[Prefs.MEDIA_RPC_SHOW_PLAYBACK_STATE, false]) {

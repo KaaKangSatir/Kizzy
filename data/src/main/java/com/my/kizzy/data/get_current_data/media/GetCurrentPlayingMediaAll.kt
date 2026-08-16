@@ -31,9 +31,9 @@ class GetCurrentPlayingMediaAll @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     object Assets {
-        val PLAY = "app-assets/$APPLICATION_ID/1300361266212241430.png"
-        val PAUSE = "app-assets/$APPLICATION_ID/1300361619490209802.png"
-        val STOP = "app-assets/$APPLICATION_ID/1300361702621188160.png"
+        val PLAY = "1300361266212241430"
+        val PAUSE = "1300361619490209802"
+        val STOP = "1300361702621188160"
     }
 
     private fun getPlaybackStateIcon(playbackState: Int): RpcImage {
@@ -55,7 +55,8 @@ class GetCurrentPlayingMediaAll @Inject constructor(
             val appName = AppUtils.getAppName(mediaController.packageName)
             val author = metadata?.let { metadataResolver.getArtistOrAuthor(it) }
             val album = metadata?.let { metadataResolver.getAlbum(it) }
-            val bitmap = metadata?.let { metadataResolver.getCoverArt(it) }
+            val bitmap = metadata?.let { metadataResolver.getCoverArt(it, context) }
+            val coverArtUri = if (bitmap == null) metadata?.let { metadataResolver.getCoverArtUri(it) } else null
             val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)
             val position = mediaController.playbackState?.position
             val playbackState = mediaController.playbackState?.state
@@ -73,7 +74,7 @@ class GetCurrentPlayingMediaAll @Inject constructor(
                     mediaController.packageName, context
                 )
 
-                var coverArt: RpcImage? = null
+                var coverArt: RpcImage? = appIcon
                 if (bitmap != null) {
                     coverArt = RpcImage.BitmapImage(
                         context = context,
@@ -81,6 +82,8 @@ class GetCurrentPlayingMediaAll @Inject constructor(
                         packageName = mediaController.packageName,
                         title = "${metadata.let { metadataResolver.getAlbumArtists(it) }}|${metadata.let { metadataResolver.getAlbum(it) }?: "unknown"}|${title}"
                     )
+                } else if (!coverArtUri.isNullOrEmpty()) {
+                    coverArt = RpcImage.ExternalImage(coverArtUri)
                 }
 
                 val playbackStateIcon = getPlaybackStateIcon(playbackState ?: PlaybackState.STATE_PAUSED)

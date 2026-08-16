@@ -30,6 +30,7 @@ import javax.inject.Inject
 class GetCurrentlyRunningApp @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
+    @Suppress("DEPRECATION")
     operator fun invoke(beginTime: Long = System.currentTimeMillis() - 10000): CommonRpc {
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -37,23 +38,33 @@ class GetCurrentlyRunningApp @Inject constructor(
         val queryUsageStats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY, beginTime, currentTimeMillis
         )
-        if (queryUsageStats != null && queryUsageStats.size > 1) {
-            val treeMap: SortedMap<Long, UsageStats> = TreeMap()
-            for (usageStats in queryUsageStats) {
-                treeMap[usageStats.lastTimeUsed] = usageStats
-            }
-            if (!(treeMap.isEmpty() || treeMap[treeMap.lastKey()]?.packageName == "com.my.kizzy" || treeMap[treeMap.lastKey()]?.packageName == "com.discord")) {
-                val packageName = treeMap[treeMap.lastKey()]!!.packageName
-                Objects.requireNonNull(packageName)
-                return CommonRpc(
-                    name = AppUtils.getAppName(packageName),
-                    details = null,
-                    state = null,
-                    largeImage = RpcImage.ApplicationIcon(packageName, context),
-                    packageName = packageName
-                )
+        val usageEvents = usageStatsManager.queryEvents(beginTime, currentTimeMillis)
+        var latestEventPackage: String? = null
+        var latestEventTime = 0L
+        val event = android.app.usage.UsageEvents.Event()
 
+        while (usageEvents.hasNextEvent()) {
+            usageEvents.getNextEvent(event)
+            if (event.eventType == android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED ||
+                event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND
+            ) {
+                if (event.timeStamp >= latestEventTime) {
+                    latestEventTime = event.timeStamp
+                    latestEventPackage = event.packageName
+                }
             }
+        }
+
+        val packageName = latestEventPackage ?: queryUsageStats?.maxByOrNull { it.lastTimeUsed }?.packageName
+
+        if (packageName != null && packageName != "com.my.kizzy" && packageName != "com.discord" && packageName != "com.android.systemui") {
+            return CommonRpc(
+                name = AppUtils.getAppName(packageName),
+                details = null,
+                state = null,
+                largeImage = RpcImage.ApplicationIcon(packageName, context),
+                packageName = packageName
+            )
         }
         return CommonRpc()
     }
