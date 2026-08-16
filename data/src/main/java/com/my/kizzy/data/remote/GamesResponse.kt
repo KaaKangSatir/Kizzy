@@ -39,13 +39,13 @@ fun GamesResponse.toGame() : Game {
     val actualIconHash = iconHash ?: iconId
     val actualCoverHash = coverImageHash ?: coverImageId
     
-    // Priority: Cover -> Icon -> Empty
+    // Priority: Icon -> Cover -> Empty
     // Send the raw hash instead of URL so Discord Gateway correctly binds it to the application ID
-    val finalLargeImage = actualCoverHash ?: actualIconHash ?: ""
-    val finalSmallImage = if (actualCoverHash != null && actualIconHash != null) actualIconHash else ""
+    val finalLargeImage = actualIconHash ?: actualCoverHash ?: ""
+    val finalSmallImage = if (actualIconHash != null && actualCoverHash != null) actualCoverHash else ""
     
-    val imageUrl = if (actualCoverHash != null) "https://cdn.discordapp.com/app-icons/$id/$actualCoverHash.png"
-                   else if (actualIconHash != null) "https://cdn.discordapp.com/app-icons/$id/$actualIconHash.png"
+    val imageUrl = if (actualIconHash != null) "https://cdn.discordapp.com/app-icons/$id/$actualIconHash.png"
+                   else if (actualCoverHash != null) "https://cdn.discordapp.com/app-icons/$id/$actualCoverHash.png"
                    else Constants.XBOX_LINK
     
     return Game(
