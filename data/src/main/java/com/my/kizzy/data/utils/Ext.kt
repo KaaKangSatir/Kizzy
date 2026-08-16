@@ -141,12 +141,13 @@ fun ApplicationInfo.toBitmap(context: Context): Bitmap? {
     return context.getAppBitmap(this.packageName)
 }
 fun String.toRpcImage(): RpcImage? {
-    return if (this.isBlank())
-        null
-    else if (this.startsWith("attachments") || this.startsWith("external"))
-        RpcImage.DiscordImage(this)
-    else
-        RpcImage.ExternalImage(this)
+    return when {
+        this.isBlank() -> null
+        this.startsWith("mp:") -> RpcImage.DiscordImage(this)
+        this.startsWith("attachments") || this.startsWith("external") -> RpcImage.DiscordImage("mp:$this")
+        this.startsWith("http://") || this.startsWith("https://") -> RpcImage.ExternalImage(this)
+        else -> RpcImage.DiscordImage(this)
+    }
 }
 
 fun Context.getFileName(uri: Uri): String = "temp_file.${getFileExtension(this, uri)}"

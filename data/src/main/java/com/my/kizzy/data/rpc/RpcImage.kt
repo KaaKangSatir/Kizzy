@@ -26,7 +26,11 @@ sealed class RpcImage {
 
     class DiscordImage(val image: String) : RpcImage() {
         override suspend fun resolveImage(repository: KizzyRepository): String {
-            return image
+            return if (image.startsWith("attachments/") || image.startsWith("external/")) {
+                "mp:$image"
+            } else {
+                image
+            }
         }
     }
 

@@ -105,8 +105,7 @@ fun ActivityRow(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = if (isAsset(rpcConfig?.largeImg)) "https://media.discordapp.net/${rpcConfig?.largeImg}" else
-                        rpcConfig?.largeImg,
+                    model = getProfileImageUrl(rpcConfig?.largeImg),
                     error = painterResource(id = R.drawable.editing_rpc_pencil),
                     placeholder = painterResource(R.drawable.editing_rpc_pencil),
                     contentDescription = null,
@@ -122,11 +121,7 @@ fun ActivityRow(
                 )
                 if (!rpcConfig?.smallImg.isNullOrEmpty()) {
                     AsyncImage(
-                        model =
-                        if (isAsset(rpcConfig?.smallImg))
-                            "https://media.discordapp.net/${rpcConfig?.smallImg}"
-                        else
-                            rpcConfig?.smallImg,
+                        model = getProfileImageUrl(rpcConfig?.smallImg),
                         error = painterResource(id = R.drawable.ic_rpc_placeholder),
                         placeholder = painterResource(R.drawable.ic_rpc_placeholder),
                         contentDescription = null,
@@ -285,8 +280,16 @@ fun ActivityRow(
     }
 }
 
-private fun isAsset(url: String?): Boolean {
-    return url?.startsWith("attachments") == true || url?.startsWith("external") == true
+private fun getProfileImageUrl(img: String?): String? {
+    if (img.isNullOrBlank()) return null
+    return when {
+        img.startsWith("http://") || img.startsWith("https://") -> img
+        img.startsWith("mp:") -> "https://media.discordapp.net/${img.removePrefix("mp:")}"
+        img.startsWith("attachments/") || img.startsWith("external/") -> "https://media.discordapp.net/$img"
+        img.startsWith("app-assets/") || img.startsWith("app-icons/") -> "https://cdn.discordapp.com/$img"
+        img.all { it.isDigit() } -> "https://cdn.discordapp.com/app-assets/${com.my.kizzy.data.rpc.Constants.APPLICATION_ID}/$img.png"
+        else -> "https://media.discordapp.net/$img"
+    }
 }
 
 private fun getFormatFromMs(ms: Long): String {

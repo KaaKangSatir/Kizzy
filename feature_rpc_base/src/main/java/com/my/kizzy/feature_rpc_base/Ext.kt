@@ -37,14 +37,14 @@ internal suspend fun Notification.Builder.setLargeIcon(
         is RpcImage.ApplicationIcon -> context.getAppInfo(rpcImage.packageName).toBitmap(context)
         is RpcImage.BitmapImage -> rpcImage.bitmap
         is RpcImage.DiscordImage -> {
-            if (rpcImage.image.startsWith("http://") || rpcImage.image.startsWith("https://")) {
-                rpcImage.image
-            } else if (rpcImage.image.startsWith("app-assets/") || rpcImage.image.startsWith("app-icons/")) {
-                "https://cdn.discordapp.com/${rpcImage.image}"
-            } else if (rpcImage.image.all { it.isDigit() }) {
-                "https://cdn.discordapp.com/app-assets/${com.my.kizzy.data.rpc.Constants.APPLICATION_ID}/${rpcImage.image}.png"
-            } else {
-                "https://cdn.discordapp.com/${rpcImage.image}"
+            val img = rpcImage.image
+            when {
+                img.startsWith("http://") || img.startsWith("https://") -> img
+                img.startsWith("mp:") -> "https://media.discordapp.net/${img.removePrefix("mp:")}"
+                img.startsWith("attachments/") || img.startsWith("external/") -> "https://media.discordapp.net/$img"
+                img.startsWith("app-assets/") || img.startsWith("app-icons/") -> "https://cdn.discordapp.com/$img"
+                img.all { it.isDigit() } -> "https://cdn.discordapp.com/app-assets/${com.my.kizzy.data.rpc.Constants.APPLICATION_ID}/$img.png"
+                else -> "https://cdn.discordapp.com/$img"
             }
         }
         is RpcImage.ExternalImage -> rpcImage.image
