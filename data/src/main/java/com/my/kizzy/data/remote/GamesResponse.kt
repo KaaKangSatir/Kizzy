@@ -49,7 +49,7 @@ fun GamesResponse.toGame() : Game {
                    else Constants.XBOX_LINK
     
     return Game(
-        platform = "PC",
+        platform = "",
         small_image = finalSmallImage,
         large_image = finalLargeImage,
         image_url = imageUrl,
