@@ -28,7 +28,7 @@ sealed class RpcImage {
 
     class DiscordImage(val image: String) : RpcImage() {
         override suspend fun resolveImage(repository: KizzyRepository): String {
-            return "mp:${image}"
+            return image
         }
     }
 
